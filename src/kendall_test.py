@@ -1,7 +1,6 @@
 import math
 import numpy as np
 from scipy.signal import convolve2d
-from scipy.stats import norm, ecdf
 from scipy.stats._survival import EmpiricalDistributionFunction   # type: ignore
 from typing import Optional
 from collections.abc import Sequence
@@ -21,7 +20,7 @@ class KendallTest:
         V_tilde: [N,] array of partial empirical PITs
         kendall_dists: Sequence of N Kendall distributions of empirical Copulas
             kendall_dists[t] is denoted by K_{Hat{C}_t} in the paper
-        num_bootstrap (N): Number of bootstrap replications
+        num_bootstrap (B): Number of bootstrap replications
         block_len (l): Length of each block in the block bootstrap
             Defaults to floor(N**(1/2.1))
         grid: [Z,] array that partitions [0, 1]
