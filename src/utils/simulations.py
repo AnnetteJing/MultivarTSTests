@@ -2,11 +2,12 @@ from collections.abc import Callable
 import numpy as np
 import pathos.multiprocessing as mp
 from scipy.stats import rv_continuous
+from tqdm.auto import tqdm
 
 from ..kendall_test import KendallTest
 
 
-def _simulate_size_single(
+def _simulate_kendall_single(
     alpha: float,
     num_timesteps: int,
     data_generation_process: Callable[[int], tuple[np.ndarray, ...]],
@@ -25,15 +26,14 @@ def _simulate_size_single(
     return [ks_pval <= alpha, cvm_pval <= alpha]
 
 
-def simulate_size(
-    alpha: float,
+def simulate_kendall(
     num_timesteps: int,
     data_generation_process: Callable[[int], tuple[np.ndarray, ...]],
     get_dist_from_params: Callable[..., dict[str, list[rv_continuous]]],
     num_repeats: int = 500,
+    alpha: float = 0.1,
 ) -> np.ndarray:
     """
-    alpha: Nominal size in (0, 1). Rejects if p-value <= alpha
     num_timesteps (N): Number of timesteps to simulate the time series.
         Passed in as an argument of data_generation_process
     data_generation_process: Function that takes in `num_timesteps` and returns
@@ -50,18 +50,32 @@ def simulate_size(
         - copula: Length N list of copulas corresponding to each Hat{F}_t
             copulas[t].cdf(u) = Hat{C}_t(u)
     num_repeats: Number of Monte Carlo replications for the entire data generation and testing process
+    alpha: Nominal size in (0, 1). Rejects if p-value <= alpha
+    ---
+    rejects: [num_repeats, 2] array of Booleans recording the rejection status of each simulation
+        - rejects[:, 0]: Rejections for the Kolmogorov-Smirnov (KS) test
+        - rejects[:, 1]: Rejections for the Cramer von Mises (CvM) test
     """
     available_cpus = mp.cpu_count()
     num_workers = 1 if available_cpus == 1 else (available_cpus - 1)
-    print(f"Running Monte Carlo size simulation on {num_workers} CPUs...")
+    print(
+        f"Running {num_repeats} Monte Carlo size simulations on {num_workers} CPUs..."
+    )
     with mp.ProcessingPool(nodes=num_workers) as pool:
-        rejects = pool.map(
-            lambda _: _simulate_size_single(
-                alpha=alpha,
-                num_timesteps=num_timesteps,
-                data_generation_process=data_generation_process,
-                get_dist_from_params=get_dist_from_params,
-            ),
-            range(num_repeats),
+        rejects = list(
+            tqdm(
+                pool.imap(
+                    lambda _: _simulate_kendall_single(
+                        alpha=alpha,
+                        num_timesteps=num_timesteps,
+                        data_generation_process=data_generation_process,
+                        get_dist_from_params=get_dist_from_params,
+                    ),
+                    range(num_repeats),
+                ),
+                total=num_repeats,
+                desc="Simulating",
+                unit="iter",
+            )
         )
     return np.array(rejects)
