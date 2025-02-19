@@ -34,7 +34,7 @@ class KendallTest:
         num_bootstrap (B): Number of bootstrap replications
         block_len (l): Length of each block in the block bootstrap
             Defaults to floor(N**(1/2.1))
-        grid: [Z,] array that partitions [0, 1]
+        grid: [Z,] array that partitions [0, 1]. Defaults to [0, 0.001, 0.002, ..., 0.999, 1]
         verbose: Whether to print progress bars, updates, and warnings
         ---
         V_tilde: [N,] array of partial empirical Kendall variables
