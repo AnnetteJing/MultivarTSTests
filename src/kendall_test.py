@@ -10,9 +10,9 @@ from tqdm.auto import tqdm
 
 class KendallTest:
     def __init__(
-        self, 
+        self,
         targets: ArrayLike,
-        joint_dists: Sequence[rv_continuous], 
+        joint_dists: Sequence[rv_continuous],
         marginal_dists: Sequence[rv_continuous],
         copulas: Sequence[rv_continuous],
         num_sim: int = 500,
@@ -38,7 +38,7 @@ class KendallTest:
         verbose: Whether to print progress bars, updates, and warnings
         ---
         V_tilde: [N,] array of partial empirical Kendall variables
-            Tilde{V}_t = Hat{C}_t(Tilde{U}_t), where the partial empirical PITs Tilde{U}_t is 
+            Tilde{V}_t = Hat{C}_t(Tilde{U}_t), where the partial empirical PITs Tilde{U}_t is
             defined by Tilde{U}_{t, d} = Hat{F}_{t, d}(Y_{t + h, d})
         kendall_dists: [N, Z] array representing the input Kendall distributions,
             the t-th row corresponds to kendall_dists[t], i.e. K_{Hat{C}_t}
@@ -49,31 +49,31 @@ class KendallTest:
             Denoted by Psi_N in the paper
         ks_stat: Kolmogorov-Smirnov (KS) statistic associated with the Kendall empirical process
         cvm_stat: Cramer von Mises (CvM) statistic associated with the Kendall empirical process
-        bootstrap_moving_sums: [N - l + 1, Z] array where each row is the inner sum 
+        bootstrap_moving_sums: [N - l + 1, Z] array where each row is the inner sum
             of the bootstrapped process
         """
-        self.num_samples = targets.shape[0] # N
-        self.targets = np.array(targets) # [N, D]
-        self.num_bootstrap = num_bootstrap # B
-        self.block_len = math.floor(
-            self.num_samples**(1/2.1)
-        ) if block_len is None else int(block_len) # l
+        self.targets = np.array(targets)  # [N, D]
+        self.num_samples = self.targets.shape[0]  # N
+        self.num_bootstrap = num_bootstrap  # B
+        self.block_len = (
+            math.floor(self.num_samples ** (1 / 2.1))
+            if block_len is None
+            else int(block_len)
+        )  # l
         assert self.block_len > 2, "Not enough data for bootstrapping"
         self.grid = np.linspace(0, 1, 1001) if grid is None else np.array(grid)
         # Define self.V_tilde & self.kendall_dists
         self._simulate_kendall(
-            joint_dists=joint_dists, 
-            marginal_dists=marginal_dists, 
+            joint_dists=joint_dists,
+            marginal_dists=marginal_dists,
             copulas=copulas,
             num_sim=num_sim,
             verbose=verbose,
         )
         # Calculate 1{V_tilde[t] <= grid[z]} for each t & z
-        self.V_tilde_indicators = (
-            self.V_tilde[:, np.newaxis] <= self.grid
-        ) # [N, Z]
+        self.V_tilde_indicators = self.V_tilde[:, np.newaxis] <= self.grid  # [N, Z]
         # Represent the empirical distribution of V_tilde as an array
-        self.V_tilde_dist = np.mean(self.V_tilde_indicators, axis=0) # [Z,]
+        self.V_tilde_dist = np.mean(self.V_tilde_indicators, axis=0)  # [Z,]
         # Define self.ep
         self._evaluate_process()
         # Calculate test statitics
@@ -85,8 +85,8 @@ class KendallTest:
         self.generate_bootstrap_dist()
 
     def _simulate_kendall(
-        self, 
-        joint_dists: Sequence[rv_continuous], 
+        self,
+        joint_dists: Sequence[rv_continuous],
         marginal_dists: Sequence[rv_continuous],
         copulas: Sequence[rv_continuous],
         num_sim: int,
@@ -98,22 +98,22 @@ class KendallTest:
             # Calculate partially empirical PITs (pePITs)
             pe_pits_t = marginal_dists[t].cdf(Yt)
             # Calculate a sample of fully empirical PITs (fePITs)
-            hat_Yt_samp = joint_dists[t].rvs(size=num_sim) # [I, D]
-            fe_pits_t = marginal_dists[t].cdf(hat_Yt_samp) # [I, D]
+            hat_Yt_samp = joint_dists[t].rvs(size=num_sim)  # [I, D]
+            fe_pits_t = marginal_dists[t].cdf(hat_Yt_samp)  # [I, D]
             # Copula-transform pePITs
             V_tilde_t = copulas[t].cdf(pe_pits_t).item()
             V_tilde.append(V_tilde_t)
             # Copula-transform fePITs to get empirical Kendall distribution
             kendall_t = ecdf(copulas[t].cdf(fe_pits_t)).cdf
             kendall_dists.append(kendall_t.evaluate(self.grid))
-        self.V_tilde = np.array(V_tilde) # [N,]
-        self.kendall_dists = np.array(kendall_dists) # [N, Z]
+        self.V_tilde = np.array(V_tilde)  # [N,]
+        self.kendall_dists = np.array(kendall_dists)  # [N, Z]
 
     def _evaluate_process(self) -> None:
-        mean_kendall_dist = np.mean(self.kendall_dists, axis=0) # [Z,]
+        mean_kendall_dist = np.mean(self.kendall_dists, axis=0)  # [Z,]
         self.ep = np.sqrt(self.num_samples) * (
             self.V_tilde_dist - mean_kendall_dist
-        ) # [Z,]
+        )  # [Z,]
 
     @staticmethod
     def _ks_statistic(ep: np.ndarray) -> float:
@@ -124,12 +124,12 @@ class KendallTest:
         return np.mean(ep**2).item()
 
     def _prepare_bootstrap(self) -> None:
-        bootstrap_summands = self.V_tilde_indicators - self.V_tilde_dist # [N, Z]
+        bootstrap_summands = self.V_tilde_indicators - self.V_tilde_dist  # [N, Z]
         self.bootstrap_moving_sums = convolve2d(
-            bootstrap_summands, # [N, Z]
-            np.ones((self.block_len, 1)), # Kernel for moving sum, [l, 1]
-            mode="valid"
-        ) # [N - l + 1, Z]
+            bootstrap_summands,  # [N, Z]
+            np.ones((self.block_len, 1)),  # Kernel for moving sum, [l, 1]
+            mode="valid",
+        )  # [N - l + 1, Z]
 
     def _get_bootstrap_statistics(self) -> tuple[float, float]:
         """
@@ -141,14 +141,16 @@ class KendallTest:
         # Sample eta_j ~ N(0, 1/l) for j = W, ..., N + W - l
         # Note: np.random.normal's scale is standard deviation so we set it to 1/sqrt(l)
         random_weights = np.random.normal(
-            loc=0, scale=1 / np.sqrt(self.block_len), 
-            size=self.bootstrap_moving_sums.shape[0]
-        ) # [N - l + 1,]
+            loc=0,
+            scale=1 / np.sqrt(self.block_len),
+            size=self.bootstrap_moving_sums.shape[0],
+        )  # [N - l + 1,]
         # Evaluate the bootstrap empirical process (Psi_N^{b*} in the paper)
         bootstrap_ep = np.sum(
-            random_weights[:, np.newaxis] * self.bootstrap_moving_sums,  # [N - l + 1, Z]
-            axis=0
-        ) / np.sqrt(self.num_samples) # [Z,]
+            random_weights[:, np.newaxis]
+            * self.bootstrap_moving_sums,  # [N - l + 1, Z]
+            axis=0,
+        ) / np.sqrt(self.num_samples)  # [Z,]
         # Calculate the associated test statistics
         bootstrap_ks_stat = self._ks_statistic(bootstrap_ep)
         bootstrap_cvm_stat = self._cvm_statistic(bootstrap_ep)
