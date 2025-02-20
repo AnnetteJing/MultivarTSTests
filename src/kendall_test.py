@@ -18,7 +18,6 @@ class KendallTest:
         num_sim: int = 500,
         num_bootstrap: int = 1000,
         block_len: Optional[int] = None,
-        grid: Optional[ArrayLike] = None,
         verbose: bool = True,
     ):
         """
@@ -34,12 +33,13 @@ class KendallTest:
         num_bootstrap (B): Number of bootstrap replications
         block_len (l): Length of each block in the block bootstrap
             Defaults to floor(N**(1/2.1))
-        grid: [Z,] array that partitions [0, 1]. Defaults to [0, 0.001, 0.002, ..., 0.999, 1]
         verbose: Whether to print progress bars, updates, and warnings
         ---
         V_tilde: [N,] array of partial empirical Kendall variables
             Tilde{V}_t = Hat{C}_t(Tilde{U}_t), where the partial empirical PITs Tilde{U}_t is
             defined by Tilde{U}_{t, d} = Hat{F}_{t, d}(Y_{t + h, d})
+        grid: [Z,] array that partitions [0, 1]. Set to V_tilde
+            TODO: Consider other grids when N is large
         kendall_dists: [N, Z] array representing the input Kendall distributions,
             the t-th row corresponds to kendall_dists[t], i.e. K_{Hat{C}_t}
         V_tilde_indicators: [N, Z] array; (t, z)-th element is 1{V_tilde[t] <= grid[z]}
@@ -61,8 +61,7 @@ class KendallTest:
             else int(block_len)
         )  # l
         assert self.block_len > 2, "Not enough data for bootstrapping"
-        self.grid = np.linspace(0, 1, 1001) if grid is None else np.array(grid)
-        # Define self.V_tilde & self.kendall_dists
+        # Define self.V_tilde, self.grid, & self.kendall_dists
         self._simulate_kendall(
             joint_dists=joint_dists,
             marginal_dists=marginal_dists,
@@ -105,9 +104,12 @@ class KendallTest:
             V_tilde.append(V_tilde_t)
             # Copula-transform fePITs to get empirical Kendall distribution
             kendall_t = ecdf(copulas[t].cdf(fe_pits_t)).cdf
-            kendall_dists.append(kendall_t.evaluate(self.grid))
+            kendall_dists.append(kendall_t)
         self.V_tilde = np.array(V_tilde)  # [N,]
-        self.kendall_dists = np.array(kendall_dists)  # [N, Z]
+        self.grid = self.V_tilde  # [Z,] TODO: Consider other grids
+        self.kendall_dists = np.array(
+            [kendall_t.evaluate(self.grid) for kendall_t in kendall_dists]
+        )  # [N, Z]
 
     def _evaluate_process(self) -> None:
         mean_kendall_dist = np.mean(self.kendall_dists, axis=0)  # [Z,]
