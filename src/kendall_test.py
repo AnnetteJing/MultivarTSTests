@@ -123,6 +123,8 @@ class KendallTest:
 
     @staticmethod
     def _cvm_statistic(ep: np.ndarray) -> float:
+        # NOTE: For this function to be valid, ep must be the scaled empirical process
+        # evaluated at observed values (self.V_tilde in our case)
         return np.mean(ep**2).item()
 
     def _prepare_bootstrap(self) -> None:
