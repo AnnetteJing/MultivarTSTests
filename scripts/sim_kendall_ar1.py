@@ -87,6 +87,7 @@ def main():
     parser.add_argument("-r", "--repeats", type=int, default=500)
     parser.add_argument("-t", "--timesteps", type=int, default=200)
     parser.add_argument("-a", "--alpha", type=float, default=0.1)
+    parser.add_argument("-s", "--seed", type=int, default=None)
     parser.add_argument(
         "--periodic", action="store_true", help="Activates periodic covariance"
     )
@@ -97,6 +98,7 @@ def main():
         num_timesteps=args.timesteps,
         data_generation_process=dgp,
         num_repeats=args.repeats,
+        seed=args.seed,
     )
     prob_rej = np.mean(rejects, axis=0)
     print(f"KS rejects with probability {prob_rej[0].item():.3f}")

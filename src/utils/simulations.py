@@ -2,6 +2,7 @@ from collections.abc import Callable
 import numpy as np
 import pathos.multiprocessing as mp
 from tqdm.auto import tqdm
+from typing import Optional
 
 from src.kendall_test import KendallTest
 
@@ -10,7 +11,10 @@ def _simulate_kendall_single(
     alpha: float,
     num_timesteps: int,
     data_generation_process: Callable[[int], tuple[np.ndarray, dict[str, list]]],
+    seed: Optional[int] = None,
 ) -> list[bool]:
+    if seed is not None:
+        np.random.seed(seed)
     targets, distributions = data_generation_process(num_timesteps=num_timesteps)
     kendall_test = KendallTest(
         targets=targets,
@@ -28,6 +32,7 @@ def simulate_kendall(
     data_generation_process: Callable[[int], tuple[np.ndarray, dict[str, list]]],
     num_repeats: int = 500,
     alpha: float = 0.1,
+    seed: Optional[int] = None,
 ) -> np.ndarray:
     """
     num_timesteps (N): Number of timesteps to simulate the time series.
@@ -44,6 +49,7 @@ def simulate_kendall(
                 copulas[t].cdf(u) = Hat{C}_t(u)
     num_repeats: Number of Monte Carlo replications for the entire data generation and testing process
     alpha: Nominal size in (0, 1). Rejects if p-value <= alpha
+    seed: Optional master seed for generating sub-seeds passed to each repetition
     ---
     rejects: [num_repeats, 2] array of Booleans recording the rejection status of each simulation
         - rejects[:, 0]: Rejections for the Kolmogorov-Smirnov (KS) test
@@ -51,6 +57,11 @@ def simulate_kendall(
     """
     available_cpus = mp.cpu_count()
     num_workers = 1 if available_cpus == 1 else (available_cpus - 1)
+    if seed is not None:
+        seed_sequence = np.random.SeedSequence(seed)
+        sub_seeds = [s.generate_state(1)[0] for s in seed_sequence.spawn(num_repeats)]
+    else:
+        sub_seeds = [None] * num_repeats
     print(
         f"Running {num_repeats} Monte Carlo size simulations on {num_workers} CPUs..."
     )
@@ -58,12 +69,13 @@ def simulate_kendall(
         rejects = list(
             tqdm(
                 pool.imap(
-                    lambda _: _simulate_kendall_single(
+                    lambda sub_seed: _simulate_kendall_single(
                         alpha=alpha,
                         num_timesteps=num_timesteps,
                         data_generation_process=data_generation_process,
+                        seed=sub_seed,
                     ),
-                    range(num_repeats),
+                    sub_seeds,
                 ),
                 total=num_repeats,
                 desc="Simulating",
