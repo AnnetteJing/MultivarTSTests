@@ -62,7 +62,7 @@ class KendallTest:
         )  # l
         assert self.block_len > 2, "Not enough data for bootstrapping"
         # Define self.V_tilde, self.grid, & self.kendall_dists
-        self._simulate_kendall(
+        self._compute_pits_kendall_dists(
             joint_dists=joint_dists,
             marginal_dists=marginal_dists,
             copulas=copulas,
@@ -83,7 +83,7 @@ class KendallTest:
         # Generate bootstrap distributions of the test statistics
         self.generate_bootstrap_dist()
 
-    def _simulate_kendall(
+    def _compute_pits_kendall_dists(
         self,
         joint_dists: Sequence[rv_continuous],
         marginal_dists: Sequence[rv_continuous],
