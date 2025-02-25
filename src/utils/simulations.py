@@ -57,11 +57,11 @@ def simulate_kendall(
     """
     available_cpus = mp.cpu_count()
     num_workers = 1 if available_cpus == 1 else (available_cpus - 1)
-    if seed is not None:
-        seed_sequence = np.random.SeedSequence(seed)
-        sub_seeds = [s.generate_state(1)[0] for s in seed_sequence.spawn(num_repeats)]
-    else:
-        sub_seeds = [None] * num_repeats
+    if seed is None:
+        seed = np.random.randint(1000)
+        print(f"No seed given, generated random seed between 0 and 1000: {seed}")
+    seed_sequence = np.random.SeedSequence(seed)
+    sub_seeds = [s.generate_state(1)[0] for s in seed_sequence.spawn(num_repeats)]
     print(
         f"Running {num_repeats} Monte Carlo size simulations on {num_workers} CPUs..."
     )
