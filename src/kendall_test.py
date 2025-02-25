@@ -95,7 +95,7 @@ class KendallTest:
         kendall_dists = []
         for t, Yt in enumerate(tqdm(self.targets, disable=not verbose)):
             # Calculate partially empirical PITs (pePITs)
-            pe_pits_t = marginal_dists[t].cdf(Yt)
+            pe_pits_t = marginal_dists[t].cdf(Yt)  # [D,]
             # Calculate a sample of fully empirical PITs (fePITs)
             hat_Yt_samp = joint_dists[t].rvs(size=num_sim)  # [I, D]
             fe_pits_t = marginal_dists[t].cdf(hat_Yt_samp)  # [I, D]
