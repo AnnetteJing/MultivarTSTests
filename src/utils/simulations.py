@@ -11,10 +11,9 @@ def _simulate_kendall_single(
     alpha: float,
     num_timesteps: int,
     data_generation_process: Callable[[int], tuple[np.ndarray, dict[str, list]]],
-    seed: Optional[int] = None,
+    seed: int,
 ) -> list[bool]:
-    if seed is not None:
-        np.random.seed(seed)
+    np.random.seed(seed)
     targets, distributions = data_generation_process(num_timesteps=num_timesteps)
     kendall_test = KendallTest(
         targets=targets,
