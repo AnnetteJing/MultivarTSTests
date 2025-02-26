@@ -1,6 +1,7 @@
 import numpy as np
 import argparse
 from collections import defaultdict
+from functools import partial
 from scipy.stats import norm, multivariate_normal
 from statsmodels.distributions.copula.api import GaussianCopula
 
@@ -15,11 +16,10 @@ Sigma2 = np.array(
     [[2.0, 0.6, -0.1], [0.6, 1.0, 0.2], [-0.1, 0.2, 1.5]]
 )  # Alternative covariance matrix of white noise
 Sigmas = (Sigma, Sigma2)
-phi = 0.1  # Common AR(1) coefficient for temporal dependence
 
 
 def _generate_targets(
-    num_timesteps: int, inital_cov: np.ndarray, noise: np.ndarray
+    num_timesteps: int, inital_cov: np.ndarray, noise: np.ndarray, phi: float
 ) -> np.ndarray:
     Y_0 = np.random.multivariate_normal(mean=np.zeros(D), cov=inital_cov)  # [D,]
     Y = [Y_0]
@@ -29,13 +29,13 @@ def _generate_targets(
 
 
 def ar1_static_gaussian_dgp(
-    num_timesteps: int,
+    num_timesteps: int, phi: float
 ) -> tuple[np.ndarray, dict[str, list]]:
     eps = np.random.multivariate_normal(
         mean=np.zeros(D), cov=Sigma, size=num_timesteps
     )  # [T, D]
     Y = _generate_targets(
-        num_timesteps=num_timesteps, inital_cov=Sigma / (1 - phi**2), noise=eps
+        num_timesteps=num_timesteps, inital_cov=Sigma / (1 - phi**2), noise=eps, phi=phi
     )  # [N + 1, D]
     targets = Y[1:]  # [N, D]
     means = phi * Y[:-1]  # [N, D]
@@ -50,7 +50,7 @@ def ar1_static_gaussian_dgp(
 
 
 def ar1_2period_gaussian_dgp(
-    num_timesteps: int,
+    num_timesteps: int, phi: float
 ) -> tuple[np.ndarray, dict[str, list]]:
     eps = np.empty((num_timesteps, D), dtype=np.float64)  # [T, D]
     num_timesteps_2 = num_timesteps // 2  # T2
@@ -62,7 +62,7 @@ def ar1_2period_gaussian_dgp(
         mean=np.zeros(D), cov=Sigma2, size=num_timesteps_2
     )  # [T2, D]
     Y = _generate_targets(
-        num_timesteps=num_timesteps, inital_cov=Sigma / (1 - phi**2), noise=eps
+        num_timesteps=num_timesteps, inital_cov=Sigma / (1 - phi**2), noise=eps, phi=phi
     )  # [N + 1, D]
     targets = Y[1:]  # [N, D]
     means = phi * Y[:-1]  # [N, D]
@@ -89,10 +89,19 @@ def main():
     parser.add_argument("-a", "--alpha", type=float, default=0.1)
     parser.add_argument("-s", "--seed", type=int, default=None)
     parser.add_argument(
+        "--phi",
+        type=float,
+        default=0.1,
+        help="Common AR(1) coefficient for temporal dependence",
+    )
+    parser.add_argument(
         "--periodic", action="store_true", help="Activates periodic covariance"
     )
     args = parser.parse_args()
-    dgp = ar1_2period_gaussian_dgp if args.periodic else ar1_static_gaussian_dgp
+    if args.periodic:
+        dgp = partial(ar1_2period_gaussian_dgp, phi=args.phi)
+    else:
+        dgp = partial(ar1_static_gaussian_dgp, phi=args.phi)
     rejects = simulate_kendall(
         alpha=args.alpha,
         num_timesteps=args.timesteps,
