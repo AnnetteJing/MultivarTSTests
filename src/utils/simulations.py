@@ -24,7 +24,7 @@ def _simulate_kendall_single(
         verbose=False,
     )
     ks_pval, cvm_pval = kendall_test.get_p_values()
-    return [ks_pval <= alpha, cvm_pval <= alpha]
+    return [ks_pval < alpha, cvm_pval < alpha]
 
 
 def simulate_kendall(
