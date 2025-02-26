@@ -32,7 +32,7 @@ class KendallTest:
         num_sim (I): Number of samples used for simulating the Kendall distribution of Hat{C}_t
         num_bootstrap (B): Number of bootstrap replications
         block_len (l): Length of each block in the block bootstrap
-            Defaults to floor(N**(1/2.1))
+            Defaults to floor(N**(1/2.5))
         verbose: Whether to print progress bars, updates, and warnings
         ---
         V_tilde: [N,] array of partial empirical Kendall variables
@@ -56,7 +56,7 @@ class KendallTest:
         self.num_samples = self.targets.shape[0]  # N
         self.num_bootstrap = num_bootstrap  # B
         self.block_len = (
-            math.floor(self.num_samples ** (1 / 2.1))
+            math.floor(self.num_samples ** (1 / 2.5))
             if block_len is None
             else int(block_len)
         )  # l
