@@ -9,7 +9,8 @@ def get_autocovariance(x: np.ndarray, lags: Sequence[int] | int):
     lags: Length L sequence of lags of autocovariance to compute
     ---
     auto_covs: [L, D, D] array of the empirical autocovariances
-        auto_covs[l] = hat{Cov}(X_t, X_{t - l}) = Average of outer(x_t - x_mean, x_{t - l} - x_mean)
+        auto_covs[l] = hat{Cov}(X_t, X_{t - l})
+        = Average of outer(x_t - x_mean, x_{t - l} - x_mean) across t = l + 1, ..., T
     """
     if isinstance(lags, int):
         lags = [lags]
@@ -39,4 +40,14 @@ class MultivarDMHLN:
         assert errors1.shape[1] == errors2.shape[1], "Mismatch in number of timesteps"
         self.num_variables = errors1.shape[0]  # D
         self.timesteps = errors1.shape[1]  # T
+        self.ma_lag = ma_lag  # q
         self.loss_diff = errors1 - errors2  # [D, T]
+        auto_covs = get_autocovariance(
+            self.loss_diff, lags=range(ma_lag + 1)
+        )  # [q + 1, D, D]
+        self.sigma_hat = auto_covs[0] + np.sum(
+            auto_covs[1:] + np.transpose(auto_covs[1:], (0, 2, 1)), axis=0
+        )  # [D, D]
+        self.hln_adjustment = (
+            self.timesteps - 1 - 2 * ma_lag + ma_lag * (ma_lag + 1) / self.timesteps
+        ) / self.timesteps
