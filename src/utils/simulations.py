@@ -1,3 +1,4 @@
+import sys
 from collections.abc import Callable
 import numpy as np
 import pathos.multiprocessing as mp
@@ -79,6 +80,8 @@ def simulate_kendall(
                 total=num_repeats,
                 desc="Simulating",
                 unit="iter",
+                file=sys.stdout,
+                smoothing=0,
             )
         )
     return np.array(rejects)
