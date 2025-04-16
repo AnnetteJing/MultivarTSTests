@@ -11,4 +11,5 @@ def get_git_root(path):
 
 
 ROOT_DIR = get_git_root(".")
-sys.path.append(ROOT_DIR)
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
