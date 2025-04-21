@@ -20,7 +20,7 @@ class JointDensityTest:
         block_len: Optional[int] = None,
         num_periods: Optional[int] = None,
         verbose: bool = True,
-    ):
+    ) -> None:
         """
         targets: [N, D] array of realized forecasting targets
             Denoted by Y_{t + h}, t = w, ..., T - h = N + w - 1, in the paper
@@ -60,6 +60,8 @@ class JointDensityTest:
         self.grid = get_unif_grid(
             num_points=num_points, num_dims=self.num_variables
         )  # [Z, D]
+        # Perform the test
+        self.test()
 
     def _get_ep_summands(self) -> np.ndarray:
         summands = []
@@ -102,7 +104,7 @@ class JointDensityTest:
         bootstrap_ks_stat = np.max(np.abs(bootstrap_ep)).item()
         return bootstrap_ks_stat
 
-    def test(self):
+    def test(self) -> None:
         # Evaluate EP summands Tilde{psi}_t(u), t = w, ..., N + w - 1, u in self.grid
         summands = self._get_ep_summands()  # [N, Z]
         # Average the summands (equal to EP / sqrt{N})
