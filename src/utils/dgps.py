@@ -93,7 +93,7 @@ def gaussian_ar_dgp(
     if mean_factor is not None:
         means = mean_factor * means  # [N, D]
     if cov_factor is not None:
-        off_diag_mask = ~np.eye(D, dtype=bool)[np.newaxis, :, :]
+        off_diag_mask = np.broadcast_to(~np.eye(D, dtype=bool), (num_timesteps, D, D))
         covs[off_diag_mask] *= cov_factor  # [N, D, D]
     # Save distributions based on means and covs
     distributions = defaultdict(list)
