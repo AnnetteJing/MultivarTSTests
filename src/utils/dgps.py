@@ -72,7 +72,8 @@ def gaussian_ar_dgp(
         beta_t = (1 - SHRINKAGE) * beta_t_ols + SHRINKAGE * INIT_BETA * np.eye(D)
         if np.isnan(beta_t).any():
             raise ValueError(
-                f"NaNs in beta_t at t = {t},\n {beta_t = }, \n{XtY = }, \n{XtX = }, \n{covs[t - window - BURNIN] = }"
+                f"NaNs in beta_t at t = {t},\n {beta_t = },"
+                f"{XtY = }, \n{XtX = }, \n{covs[t - window - BURNIN] = }"
             )
         if t >= window + BURNIN:
             means.append(beta_t @ Y_bar[t])
