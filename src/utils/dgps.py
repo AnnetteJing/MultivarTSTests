@@ -70,9 +70,9 @@ def gaussian_ar_dgp(
     for t in range(window, total_len - 1):
         lead = Y_bar[t - window + 1 : t]  # t - w + 1 ~ t - 1
         lag = Y_bar[t - window : t - 1]  # t - w ~ t - 2
-        XtY = np.einsum("ti,tj->ij", lead, lag)
-        XtX = np.einsum("ti,tj->ij", lag, lag)
-        beta_t_ols = XtY @ np.linalg.pinv(XtX + 1e-6 * np.eye(D))
+        XtY = np.einsum("ti,tj->ij", lead, lag)  # [D, D]
+        XtX = np.einsum("ti,tj->ij", lag, lag)  # [D, D]
+        beta_t_ols = XtY @ np.linalg.pinv(XtX + 1e-6 * np.eye(D))  # [D, D]
         beta_t = (1 - SHRINKAGE) * beta_t_ols + SHRINKAGE * INIT_BETA * np.eye(D)
         if np.any(np.isnan(beta_t)):
             raise ValueError(
@@ -92,7 +92,7 @@ def gaussian_ar_dgp(
         means = mean_factor * means  # [N, D]
     if cov_factor is not None:
         off_diag_mask = ~np.eye(D, dtype=bool)[np.newaxis, :, :]
-        covs[off_diag_mask] *= cov_factor
+        covs[off_diag_mask] *= cov_factor  # [N, D, D]
     # Save distributions based on means and covs
     distributions = defaultdict(list)
     for t in range(num_timesteps):
