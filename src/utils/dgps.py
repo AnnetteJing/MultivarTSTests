@@ -2,7 +2,7 @@ import numpy as np
 from collections import defaultdict
 from scipy.stats import norm
 from statsmodels.distributions.copula.api import GaussianCopula
-
+from typing import Optional
 
 BURNIN = 100  # b
 D = 2
@@ -31,6 +31,8 @@ def gaussian_ar_dgp(
     num_timesteps: int,
     window: int,
     cyclo_stationary: bool = True,
+    mean_factor: Optional[float] = None,
+    cov_factor: Optional[float] = None,
 ) -> tuple[np.ndarray, dict[str, list]]:
     total_len = window + BURNIN + num_timesteps
     wn = np.random.multivariate_normal(
@@ -49,6 +51,8 @@ def gaussian_ar_dgp(
             lambda_t *= ARCH_PARAM_SUM
         if t >= window + BURNIN:
             covs.append(np.inner(lambda_t * L[t % P], L[t % P]))
+        if np.any(lambda_t < 0):
+            raise ValueError(f"{lambda_t = },\n{eps[t - window : t] = }")
         eps[t] = np.sqrt(lambda_t) * wn[t]  # eps_t ~ N(0, diag(lambda_t))
     # Introduce periodic correlation structure
     # eps_t ~ N(0, Lq @ diag(lambda_t) @ Lq.T), q = t mod P
@@ -83,6 +87,9 @@ def gaussian_ar_dgp(
     mu = np.stack([f(range(num_timesteps)) for f in TREND_FUNCS]).T  # [N, D]
     targets = Y_bar[window + BURNIN :] + mu  # [N, D]
     means = means + mu  # [N, D]
+    # Modify means and covs to be different from DGP for power analysis
+    if mean_factor is not None:
+        means = mean_factor * means  # [N, D]
     # Save distributions based on means and covs
     distributions = defaultdict(list)
     for t in range(num_timesteps):
