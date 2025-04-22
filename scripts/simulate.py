@@ -13,8 +13,13 @@ def main():
     parser.add_argument("-w", "--window", type=int, default=20)
     parser.add_argument("-a", "--alpha", type=float, default=0.1)
     parser.add_argument("-s", "--seed", type=int, default=None)
+    parser.add_argument(
+        "--non-stat", action="store_true", help="Uses non-stationary residuals"
+    )
     args = parser.parse_args()
-    dgp = partial(gaussian_ar_dgp, window=args.window)
+    dgp = partial(
+        gaussian_ar_dgp, window=args.window, cyclo_stationary=not args.non_stat
+    )
     rejects = simulate_density_test(
         num_timesteps=args.timesteps,
         data_generation_process=dgp,

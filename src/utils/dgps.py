@@ -24,10 +24,13 @@ L = {
 }
 INIT_BETA = 0.4
 SHRINKAGE = 0.6
+ARCH_PARAM_SUM = 0.5
 
 
 def gaussian_ar_dgp(
-    num_timesteps: int, window: int
+    num_timesteps: int,
+    window: int,
+    cyclo_stationary: bool = True,
 ) -> tuple[np.ndarray, dict[str, list]]:
     total_len = window + BURNIN + num_timesteps
     wn = np.random.multivariate_normal(
@@ -36,14 +39,17 @@ def gaussian_ar_dgp(
     # Simulate residuals & save its covariances
     eps = np.zeros(wn.shape)  # [w + b + N, D]
     eps[:window] = wn[:window]
-    lambda_t = np.mean(eps[0:window] ** 2, axis=0)
     covs = []
     # Generate time varying volatility process
     for t in range(window, total_len):
+        # ARCH parameters sum to 1 (non-stationary)
+        lambda_t = np.mean(eps[t - window : t] ** 2, axis=0)
+        # ARCH parameters sum to ARCH_PARAM_SUM < 1 (stationary)
+        if cyclo_stationary:
+            lambda_t *= ARCH_PARAM_SUM
         if t >= window + BURNIN:
             covs.append(np.inner(lambda_t * L[t % P], L[t % P]))
         eps[t] = np.sqrt(lambda_t) * wn[t]  # eps_t ~ N(0, diag(lambda_t))
-        lambda_t += (eps[t] ** 2 - eps[t - window] ** 2) / window
     # Introduce periodic correlation structure
     # eps_t ~ N(0, Lq @ diag(lambda_t) @ Lq.T), q = t mod P
     for q in range(P):
