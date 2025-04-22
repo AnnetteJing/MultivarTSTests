@@ -51,7 +51,7 @@ def gaussian_ar_dgp(
             lambda_t *= ARCH_PARAM_SUM
         if t >= window + BURNIN:
             covs.append(np.inner(lambda_t * L[t % P], L[t % P]))
-        if np.any(lambda_t < 0):
+        if np.any(lambda_t < 0) or np.any(np.isnan(lambda_t)):
             raise ValueError(f"{lambda_t = },\n{eps[t - window : t] = }")
         eps[t] = np.sqrt(lambda_t) * wn[t]  # eps_t ~ N(0, diag(lambda_t))
     # Introduce periodic correlation structure
@@ -74,7 +74,7 @@ def gaussian_ar_dgp(
         XtX = np.einsum("ti,tj->ij", lag, lag)
         beta_t_ols = XtY @ np.linalg.pinv(XtX + 1e-6 * np.eye(D))
         beta_t = (1 - SHRINKAGE) * beta_t_ols + SHRINKAGE * INIT_BETA * np.eye(D)
-        if np.isnan(beta_t).any():
+        if np.any(np.isnan(beta_t)):
             raise ValueError(
                 f"NaNs in beta_t at t = {t},\n {beta_t = },"
                 f"{XtY = }, \n{XtX = }, \n{covs[t - window - BURNIN] = }"
