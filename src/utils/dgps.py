@@ -46,6 +46,8 @@ def gaussian_ar_dgp(
     for t in range(window, total_len):
         # ARCH parameters sum to 1 (non-stationary)
         lambda_t = np.mean(eps[t - window : t] ** 2, axis=0)
+        if num_timesteps > 500:
+            lambda_t = np.minimum(lambda_t, 2)
         # ARCH parameters sum to ARCH_PARAM_SUM < 1 (stationary)
         if cyclo_stationary:
             lambda_t *= ARCH_PARAM_SUM
