@@ -90,6 +90,9 @@ def gaussian_ar_dgp(
     # Modify means and covs to be different from DGP for power analysis
     if mean_factor is not None:
         means = mean_factor * means  # [N, D]
+    if cov_factor is not None:
+        off_diag_mask = ~np.eye(D, dtype=bool)[np.newaxis, :, :]
+        covs[off_diag_mask] *= cov_factor
     # Save distributions based on means and covs
     distributions = defaultdict(list)
     for t in range(num_timesteps):

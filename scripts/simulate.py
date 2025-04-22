@@ -16,9 +16,15 @@ def main():
     parser.add_argument(
         "--non-stat", action="store_true", help="Uses non-stationary residuals"
     )
+    parser.add_argument("--mean-factor", type=float, default=None)
+    parser.add_argument("--cov-factor", type=float, default=None)
     args = parser.parse_args()
     dgp = partial(
-        gaussian_ar_dgp, window=args.window, cyclo_stationary=not args.non_stat
+        gaussian_ar_dgp,
+        window=args.window,
+        cyclo_stationary=not args.non_stat,
+        mean_factor=args.mean_factor,
+        cov_factor=args.cov_factor,
     )
     rejects = simulate_density_test(
         num_timesteps=args.timesteps,
