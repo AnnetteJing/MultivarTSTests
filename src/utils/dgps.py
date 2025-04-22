@@ -46,16 +46,19 @@ def gaussian_ar_dgp(
     for t in range(window, total_len):
         # ARCH parameters sum to 1 (non-stationary)
         lambda_t = np.mean(eps[t - window : t] ** 2, axis=0)
-        if num_timesteps > 500:
-            lambda_t = np.minimum(lambda_t, 2)
         # ARCH parameters sum to ARCH_PARAM_SUM < 1 (stationary)
         if cyclo_stationary:
             lambda_t *= ARCH_PARAM_SUM
+        # Stablize lambda_t for longer timesteps
+        if num_timesteps > 500:
+            lambda_t = np.minimum(lambda_t, 3)
+        # Save covariance after burn-in period
         if t >= window + BURNIN:
             covs.append(np.inner(lambda_t * L[t % P], L[t % P]))
         if np.any(lambda_t < 0) or np.any(np.isnan(lambda_t)):
             raise ValueError(f"{lambda_t = },\n{eps[t - window : t] = }")
-        eps[t] = np.sqrt(lambda_t) * wn[t]  # eps_t ~ N(0, diag(lambda_t))
+        # eps_t ~ N(0, diag(lambda_t))
+        eps[t] = np.sqrt(lambda_t) * wn[t]
     # Introduce periodic correlation structure
     # eps_t ~ N(0, Lq @ diag(lambda_t) @ Lq.T), q = t mod P
     for q in range(P):
