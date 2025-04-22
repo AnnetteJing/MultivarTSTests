@@ -60,8 +60,6 @@ class JointDensityTest:
         self.grid = get_unif_grid(
             num_points=num_points, num_dims=self.num_variables
         )  # [Z, D]
-        # Perform the test
-        self.test()
 
     def _get_ep_summands(self) -> np.ndarray:
         summands = []
