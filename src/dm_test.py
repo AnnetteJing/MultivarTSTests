@@ -4,13 +4,14 @@ from typing import Sequence
 
 def get_autocovariance(x: np.ndarray, lags: Sequence[int] | int):
     """
-    x: [D, T] array, with D being the number of variables & T the number of timesteps
-        [T,] arrays will be reshaped to [1, T]
-    lags: Length L sequence of lags of autocovariance to compute
-    ---
-    auto_covs: [L, D, D] array of the empirical autocovariances
-        auto_covs[l] = hat{Cov}(X_t, X_{t - l})
-        = Average of outer(x_t - x_mean, x_{t - l} - x_mean) across t = l + 1, ..., T
+    Arguments:
+        x: [D, T] array, with D being the number of variables & T the number of timesteps
+            [T,] arrays will be reshaped to [1, T]
+        lags: Length L sequence of lags of autocovariance to compute
+    Returns:
+        auto_covs: [L, D, D] array of the empirical autocovariances
+            auto_covs[l] = hat{Cov}(X_t, X_{t - l})
+            = Average of outer(x_t - x_mean, x_{t - l} - x_mean) across t = l + 1, ..., T
     """
     if isinstance(lags, int):
         lags = [lags]
@@ -32,9 +33,10 @@ def get_autocovariance(x: np.ndarray, lags: Sequence[int] | int):
 class MultivarDMHLN:
     def __init__(self, errors1: np.ndarray, errors2: np.ndarray, ma_lag: int):
         """
-        errors1: [D, T] array of forecast errors from model 1 (benchmark model)
-        errors2: [D, T] array of forecast errors from model 2
-        ma_lag (q): Number of lags in the MA representation
+        Arguments:
+            errors1: [D, T] array of forecast errors from model 1 (benchmark model)
+            errors2: [D, T] array of forecast errors from model 2
+            ma_lag (q): Number of lags in the MA representation
         """
         assert errors1.shape[0] == errors2.shape[0], "Mismatch in number of variables"
         assert errors1.shape[1] == errors2.shape[1], "Mismatch in number of timesteps"
