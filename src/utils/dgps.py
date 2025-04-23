@@ -31,7 +31,7 @@ def gaussian_ar_dgp(
     num_timesteps: int,
     window: int,
     cyclo_stationary: bool = True,
-    mean_factor: Optional[float] = None,
+    mean_bias: Optional[float] = None,
     cov_factor: Optional[float] = None,
 ) -> tuple[np.ndarray, dict[str, list]]:
     total_len = window + BURNIN + num_timesteps
@@ -46,12 +46,14 @@ def gaussian_ar_dgp(
     for t in range(window, total_len):
         # ARCH parameters sum to 1 (non-stationary)
         lambda_t = np.mean(eps[t - window : t] ** 2, axis=0)
+        if not np.all(np.isfinite(lambda_t)):
+            raise ValueError(f"Infinite value found in \n{lambda_t = }")
         # ARCH parameters sum to ARCH_PARAM_SUM < 1 (stationary)
         if cyclo_stationary:
             lambda_t *= ARCH_PARAM_SUM
         # Stablize lambda_t for longer timesteps
         if num_timesteps > 500:
-            lambda_t = np.minimum(lambda_t, 3)
+            lambda_t = np.minimum(lambda_t, 2)
         # Save covariance after burn-in period
         if t >= window + BURNIN:
             covs.append(np.inner(lambda_t * L[t % P], L[t % P]))
@@ -93,8 +95,8 @@ def gaussian_ar_dgp(
     targets = Y_bar[window + BURNIN :] + mu  # [N, D]
     means = means + mu  # [N, D]
     # Modify means and covs to be different from DGP for power analysis
-    if mean_factor is not None:
-        means = mean_factor * means  # [N, D]
+    if mean_bias is not None:
+        means[:, 0] = mean_bias + means[:, 0]  # [N, D]
     if cov_factor is not None:
         off_diag_mask = np.broadcast_to(~np.eye(D, dtype=bool), (num_timesteps, D, D))
         covs[off_diag_mask] *= cov_factor  # [N, D, D]
