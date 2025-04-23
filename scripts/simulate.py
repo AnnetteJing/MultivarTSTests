@@ -23,7 +23,7 @@ def main():
         gaussian_ar_dgp,
         window=args.window,
         cyclo_stationary=not args.non_stat,
-        mean_factor=args.mean_factor,
+        mean_bias=args.mean_factor,
         cov_factor=args.cov_factor,
     )
     rejects = simulate_density_test(
