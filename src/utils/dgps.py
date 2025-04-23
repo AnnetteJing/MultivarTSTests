@@ -31,7 +31,7 @@ def gaussian_ar_dgp(
     num_timesteps: int,
     window: int,
     cyclo_stationary: bool = True,
-    mean_bias: Optional[float] = None,
+    var_factor: Optional[float] = None,
     cov_factor: Optional[float] = None,
 ) -> tuple[np.ndarray, dict[str, list]]:
     total_len = window + BURNIN + num_timesteps
@@ -94,9 +94,7 @@ def gaussian_ar_dgp(
     mu = np.stack([f(range(num_timesteps)) for f in TREND_FUNCS]).T  # [N, D]
     targets = Y_bar[window + BURNIN :] + mu  # [N, D]
     means = means + mu  # [N, D]
-    # Modify means and covs to be different from DGP for power analysis
-    if mean_bias is not None:
-        means[:, 0] = mean_bias + means[:, 0]  # [N, D]
+    # Modify covs to be different from DGP for power analysis
     if cov_factor is not None:
         off_diag_mask = np.broadcast_to(~np.eye(D, dtype=bool), (num_timesteps, D, D))
         covs[off_diag_mask] *= cov_factor  # [N, D, D]
@@ -105,6 +103,9 @@ def gaussian_ar_dgp(
     for t in range(num_timesteps):
         std_t = np.sqrt(np.diag(covs[t]))  # Standard deviations
         corr_t = covs[t] / np.outer(std_t, std_t)  # Correlations
+        # Modify stds to be different from DGP for power analysis
+        if var_factor is not None:
+            std_t *= np.sqrt(var_factor)
         distributions["marginal"].append(norm(loc=means[t], scale=std_t))
         distributions["copula"].append(GaussianCopula(corr=corr_t, k_dim=D))
     return targets, distributions
