@@ -2,7 +2,7 @@ import numpy as np
 import argparse
 from functools import partial
 
-from src.utils.dgps import gaussian_ar_dgp
+from src.utils.density_dgps import gaussian_ar_dgp
 from src.utils.sim_density import simulate_density_test
 
 
