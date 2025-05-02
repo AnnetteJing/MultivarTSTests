@@ -37,24 +37,35 @@ def get_autocovariance(x: np.ndarray, lags: Sequence[int] | int):
 class MultivarDMHLN:
     def __init__(
         self,
-        errors1: np.ndarray,
-        errors2: np.ndarray,
         ma_lag: int,
+        loss_diff: np.ndarray = None,
+        errors1: np.ndarray = None,
+        errors2: np.ndarray = None,
         num_samples: int = 100000,
     ):
         """
         Arguments:
+            ma_lag (q): Number of lags in the MA representation
+            loss_diff: [D, T] array of loss differential between the two models
+                If None, defaults to errors1 - errors.
+                Either `loss_diff` or `errors1, errors2` must be given.
             errors1: [D, T] array of forecast errors from model 1 (benchmark model)
             errors2: [D, T] array of forecast errors from model 2
-            ma_lag (q): Number of lags in the MA representation
             num_samples (B): Number of Monte Carlo samples for size determination
         """
-        assert errors1.shape[0] == errors2.shape[0], "Mismatch in number of variables"
-        assert errors1.shape[1] == errors2.shape[1], "Mismatch in number of timesteps"
-        self.num_variables = errors1.shape[0]  # D
-        self.timesteps = errors1.shape[1]  # T
+        if loss_diff is None:
+            assert errors1 is not None and errors2 is not None
+            assert errors1.shape[0] == errors2.shape[0], (
+                "Mismatch in number of variables"
+            )
+            assert errors1.shape[1] == errors2.shape[1], (
+                "Mismatch in number of timesteps"
+            )
+            loss_diff = errors1 - errors2  # [D, T]
+        self.loss_diff = loss_diff  # [D, T]
+        self.num_variables = loss_diff.shape[0]  # D
+        self.timesteps = loss_diff.shape[1]  # T
         self.ma_lag = ma_lag  # q
-        self.loss_diff = errors1 - errors2  # [D, T]
         self.mean_loss_diff = np.mean(self.loss_diff, axis=1)  # [D,]
         auto_covs = get_autocovariance(
             self.loss_diff, lags=range(ma_lag + 1)
