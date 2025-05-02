@@ -12,7 +12,7 @@ def mariano_preve_dgp(
         theta: Parameter controlling strength of serial correlation
         rho: Parameter controlling strength of contemporaneous correlation
     Returns:
-        ma_series: MA(q) series generated following Section 4 of Mariano & Preve (2012)
+        ma_series ([D, T]): MA(q) series generated following Section 4 of Mariano & Preve (2012)
     """
     # Generate white noise series
     eps_cov = rho * np.ones((dim, dim))
@@ -28,5 +28,5 @@ def mariano_preve_dgp(
     eps_windows = np.lib.stride_tricks.sliding_window_view(
         eps, window_shape=ma_lags + 1, axis=0
     )  # [T, D, q + 1]
-    ma_series = np.einsum("tdj,jd->td", eps_windows, ma_coef)  # [T, D]
+    ma_series = np.einsum("tdj,jd->dt", eps_windows, ma_coef)  # [D, T]
     return ma_series
