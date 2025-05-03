@@ -1,6 +1,20 @@
 import numpy as np
 from numpy.typing import ArrayLike
+from scipy.linalg import inv
 from scipy.stats import f
+import warnings
+
+
+def matrix_inverse(mat: np.ndarray) -> np.ndarray:
+    try:
+        mat_inv = inv(mat)  # [D, D]
+    except (np.linalg.LinAlgError, ValueError):
+        warnings.warn(
+            "Matrix inversion failed. Falling back to pseudo-inverse.",
+            RuntimeWarning,
+        )
+        mat_inv = np.linalg.pinv(mat)  # [D, D]
+    return mat_inv
 
 
 def hotelling_t2_ppf(q: ArrayLike, dim_rv: int, samp_size: int) -> ArrayLike:
