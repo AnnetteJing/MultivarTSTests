@@ -6,9 +6,9 @@ def mariano_preve_dgp(
 ) -> np.ndarray:
     """
     Args:
-        num_timesteps (T)
-        dim (D)
-        ma_lag (q)
+        num_timesteps (T): Number of time steps to generate
+        dim (D): Dimension of the target, i.e. number of variables
+        ma_lag (q): Number of lags in the moving average process
         theta: Parameter controlling strength of serial correlation
         rho: Parameter controlling strength of contemporaneous correlation
     Returns:
