@@ -81,15 +81,15 @@ class MultivarDMHLN:
             "1side": const_adj
             * self._get_chi_sq_stat(
                 mean_loss_diff, one_side=True, weights=self.sigma_hat_diag_inv
-            ),
+            ).item(),
             "1side_unit": const_adj
             * self._get_chi_sq_stat(
                 mean_loss_diff, one_side=True, weights=1 / self.num_variables
-            ),
+            ).item(),
             "1side_lr": const_adj
-            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=True),
+            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=True).item(),
             "2side": const_adj
-            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=False),
+            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=False).item(),
         }
         return dm_stats
 
