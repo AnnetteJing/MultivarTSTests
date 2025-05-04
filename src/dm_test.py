@@ -72,6 +72,8 @@ class MultivarDMHLN:
         return chi_sq_stat
 
     def get_dm_stats(self, mean_vec: Optional[np.ndarray] = None) -> dict[str, float]:
+        if mean_vec is None and hasattr(self, "dm_stats"):
+            return self.dm_stats
         mean_loss_diff = (
             self.mean_loss_diff if mean_vec is None else self.mean_loss_diff + mean_vec
         )  # [D,]
