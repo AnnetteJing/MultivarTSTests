@@ -50,28 +50,17 @@ class MultivarDMHLN:
         self.sigma_hat_inv_sqrt = sqrtm(self.sigma_hat_inv)  # [D, D]
         self.sigma_hat_diag_inv = 1 / np.diagonal(self.sigma_hat)  # [D,]
         # Calculate the test statistics
-        mean_loss_diff = np.mean(self.loss_diff, axis=1)  # [D,]
-        mean_loss_diff_white = self.sigma_hat_inv_sqrt @ mean_loss_diff  # [D,]
-        hln_adjustment = (
+        self.mean_loss_diff = np.mean(self.loss_diff, axis=1)  # [D,]
+        self.hln_adjustment = (
             self.timesteps - 1 - 2 * ma_lag + ma_lag * (ma_lag + 1) / self.timesteps
         ) / self.timesteps
-        const_adj = hln_adjustment * (self.timesteps - 1)
-        self.dm_stats = {
-            "1side": const_adj
-            * self._get_chi_sq_stat(
-                mean_loss_diff, one_side=True, weights=self.sigma_hat_diag_inv
-            ),
-            "1side_lr": const_adj
-            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=True),
-            "2side": const_adj
-            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=False),
-        }
+        self.dm_stats = self.get_dm_stats()
 
     @staticmethod
     def _get_chi_sq_stat(
         obs: np.ndarray,
         one_side: bool,
-        weights: Optional[np.ndarray] = None,
+        weights: Optional[np.ndarray | float] = None,
         axis: int = None,
     ) -> float:
         if one_side:
@@ -81,6 +70,28 @@ class MultivarDMHLN:
             obs_sq = obs_sq * weights
         chi_sq_stat = np.sum(obs_sq, axis=axis)
         return chi_sq_stat
+
+    def get_dm_stats(self, mean_vec: Optional[np.ndarray] = None) -> dict[str, float]:
+        mean_loss_diff = (
+            self.mean_loss_diff if mean_vec is None else self.mean_loss_diff + mean_vec
+        )  # [D,]
+        mean_loss_diff_white = self.sigma_hat_inv_sqrt @ mean_loss_diff  # [D,]
+        const_adj = self.hln_adjustment * (self.timesteps - 1)
+        dm_stats = {
+            "1side": const_adj
+            * self._get_chi_sq_stat(
+                mean_loss_diff, one_side=True, weights=self.sigma_hat_diag_inv
+            ),
+            "1side_unit": const_adj
+            * self._get_chi_sq_stat(
+                mean_loss_diff, one_side=True, weights=1 / self.num_variables
+            ),
+            "1side_lr": const_adj
+            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=True),
+            "2side": const_adj
+            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=False),
+        }
+        return dm_stats
 
     def _monte_carlo_sampling(self, resample: bool = False) -> None:
         if resample or not hasattr(self, "mc_stats"):
@@ -95,6 +106,12 @@ class MultivarDMHLN:
                     self.mc_samples,
                     one_side=True,
                     weights=self.sigma_hat_diag_inv,
+                    axis=1,
+                ),
+                "1side_unit": self._get_chi_sq_stat(
+                    self.mc_samples,
+                    one_side=True,
+                    weights=1 / self.num_variables,
                     axis=1,
                 ),
                 "1side_lr": self._get_chi_sq_stat(
@@ -114,17 +131,15 @@ class MultivarDMHLN:
         )
 
     def get_rejection_threshold(self, alpha: float = 0.1) -> dict[str, float]:
-        return {
-            "1side": np.quantile(self.mc_stats["1side"], 1 - alpha).item(),
-            "1side_lr": np.quantile(self.mc_stats["1side_lr"], 1 - alpha).item(),
-            "2side": self.t2_dist.ppf(1 - alpha).item(),
-        }
+        rej_thresh = dict()
+        for test_type, mc_stat in self.mc_stats.items():
+            rej_thresh[test_type] = np.quantile(mc_stat, 1 - alpha).item()
+        rej_thresh["2side"] = self.t2_dist.ppf(1 - alpha).item()
+        return rej_thresh
 
     def get_p_value(self) -> dict[str, float]:
-        return {
-            "1side": np.mean(self.mc_stats["1side"] > self.dm_stats["1side"]).item(),
-            "1side_lr": np.mean(
-                self.mc_stats["1side_lr"] > self.dm_stats["1side_lr"]
-            ).item(),
-            "2side": 1 - self.t2_dist.cdf(self.dm_stats["2side"]).item(),
-        }
+        pvals = dict()
+        for test_type, mc_stat in self.mc_stats.items():
+            pvals[test_type] = np.mean(mc_stat > self.dm_stats[test_type]).item()
+        pvals["2side"] = 1 - self.t2_dist.cdf(self.dm_stats["2side"]).item()
+        return pvals
