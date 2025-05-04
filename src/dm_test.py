@@ -1,37 +1,9 @@
+from git import Optional
 import numpy as np
-from scipy.linalg import null_space
+from scipy.linalg import sqrtm
 from scipy.stats import multivariate_t
-from typing import Sequence
 
-from src.utils.utils import hotelling_t2_ppf
-
-
-def get_autocovariance(x: np.ndarray, lags: Sequence[int] | int):
-    """
-    Arguments:
-        x: [D, T] array, with D being the number of variables & T the number of timesteps
-            [T,] arrays will be reshaped to [1, T]
-        lags: Length L sequence of lags of autocovariance to compute
-    Returns:
-        auto_covs: [L, D, D] array of the empirical autocovariances
-            auto_covs[l] = hat{Cov}(X_t, X_{t - l})
-            = Average of outer(x_t - x_mean, x_{t - l} - x_mean) across t = l + 1, ..., T
-    """
-    if isinstance(lags, int):
-        lags = [lags]
-    if len(x.shape) == 1:
-        x = x[np.newaxis, :]
-    x_mean = np.mean(x, axis=1, keepdims=True)  # [D, 1]
-    x_centered = x - x_mean  # [D, T]
-    auto_covs = []
-    for lag in lags:
-        # Empirical estimate of Cov(X_t, X_{t - lag}) (not de-biased)
-        auto_cov_l = np.einsum(
-            "it,jt->ijt", np.roll(x_centered, lag)[:, lag:], x_centered[:, lag:]
-        ).mean(axis=2)  # [D, D]
-        auto_covs.append(auto_cov_l)
-    auto_covs = np.array(auto_covs)  # [L, D, D]
-    return auto_covs
+from src.utils.utils import get_autocovariance, matrix_inverse, HotellingT2
 
 
 class MultivarDMHLN:
@@ -66,62 +38,93 @@ class MultivarDMHLN:
         self.num_variables = loss_diff.shape[0]  # D
         self.timesteps = loss_diff.shape[1]  # T
         self.ma_lag = ma_lag  # q
-        self.mean_loss_diff = np.mean(self.loss_diff, axis=1)  # [D,]
+        self.num_samples = num_samples  # B
+        # Consistent estimator of limiting covariance
         auto_covs = get_autocovariance(
             self.loss_diff, lags=range(ma_lag + 1)
         )  # [q + 1, D, D]
         self.sigma_hat = auto_covs[0] + np.sum(
             auto_covs[1:] + np.transpose(auto_covs[1:], (0, 2, 1)), axis=0
         )  # [D, D]
-        self.sigma_hat_inv = np.linalg.pinv(self.sigma_hat)  # [D, D]
-        self.hln_adjustment = (
+        self.sigma_hat_inv = matrix_inverse(self.sigma_hat)  # [D, D]
+        self.sigma_hat_inv_sqrt = sqrtm(self.sigma_hat_inv)  # [D, D]
+        self.sigma_hat_diag_inv = 1 / np.diagonal(self.sigma_hat)  # [D,]
+        # Calculate the test statistics
+        mean_loss_diff = np.mean(self.loss_diff, axis=1)  # [D,]
+        mean_loss_diff_white = self.sigma_hat_inv_sqrt @ mean_loss_diff  # [D,]
+        hln_adjustment = (
             self.timesteps - 1 - 2 * ma_lag + ma_lag * (ma_lag + 1) / self.timesteps
         ) / self.timesteps
-        # DM statistics
-        scaling_const = self.hln_adjustment * (self.timesteps - 1)
+        const_adj = hln_adjustment * (self.timesteps - 1)
         self.dm_stats = {
-            "vec": np.sqrt(scaling_const) * self.mean_loss_diff,  # [D,]
-            "t2": scaling_const
-            * (
-                self.mean_loss_diff.T @ self.sigma_hat_inv @ self.mean_loss_diff
-            ),  # [1,]
+            "1side": const_adj
+            * self._get_chi_sq_stat(
+                mean_loss_diff, one_side=True, weights=self.sigma_hat_diag_inv
+            ),
+            "1side_lr": const_adj
+            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=True),
+            "2side": const_adj
+            * self._get_chi_sq_stat(mean_loss_diff_white, one_side=False),
         }
-        # Monte Carlo samples for size determination
-        self.mc_samples = multivariate_t.rvs(
-            shape=self.sigma_hat, df=self.timesteps - 1, size=num_samples
-        )  # [B, D]
-        self.mc_norms = np.einsum(
-            "bi,ij,bj->b", self.mc_samples, self.sigma_hat_inv, self.mc_samples
-        )  # [B,]
 
-    def test(self, alpha: float = 0.1, tol: float = 1e-3):
-        alpha_1side = alpha + tol * 1e3  # Ensure we always enter the while loop
-        alpha_l, alpha_r = alpha, 1.0
-        while abs(alpha_1side - alpha) > tol:
-            alpha_2side = (alpha_l + alpha_r) / 2
-            t2_crit_val = hotelling_t2_ppf(
-                q=1 - alpha_2side,
-                dim_rv=self.num_variables,
-                samp_size=self.timesteps - 1,
-            )
-            accept_2side_bool = self.mc_norms <= t2_crit_val  # [B,] (A2 are True)
-            accept_2side = self.mc_samples[accept_2side_bool]  # [A2, D]
-            max_idx = np.argmax(accept_2side, axis=0)  # [D,]
-            max_accept = accept_2side[max_idx]  # [D, D]
-            max_vals = np.diagonal(max_accept)  # [D,]
-            accept_1side_bool = np.any(
-                self.mc_samples[~accept_2side_bool] <= max_vals, axis=1
-            )  # [B - A2,] (A1 - A2 are True)
-            num_accept_1side = np.sum(accept_1side_bool) + len(accept_2side)  # A1
-            alpha_1side = num_accept_1side / len(self.mc_norms)  # A1 / B
-        # Compute hyperplane
-        max_accept = max_accept.T  # [D, D], each col is a D-dim point
-        normal_vec = null_space(max_accept[1:] - max_accept[0]).flatten()  # [D,]
-        if np.inner(normal_vec, np.ones(self.num_variables) + max_accept[0]) < 0:
-            normal_vec = -normal_vec
-        # Rejection outcome
-        if np.inner(normal_vec, self.dm_stats["vec"] - max_accept[0]) > 0:
-            reject = self.dm_stats["t2"] > t2_crit_val
-        else:
-            reject = np.any(self.dm_stats["vec"] > max_vals)
-        return reject.item()
+    @staticmethod
+    def _get_chi_sq_stat(
+        obs: np.ndarray,
+        one_side: bool,
+        weights: Optional[np.ndarray] = None,
+        axis: int = None,
+    ) -> float:
+        if one_side:
+            obs = np.maximum(obs, 0)
+        obs_sq = obs**2
+        if weights is not None:
+            obs_sq = obs_sq * weights
+        chi_sq_stat = np.sum(obs_sq, axis=axis)
+        return chi_sq_stat
+
+    def _monte_carlo_sampling(self, resample: bool = False) -> None:
+        if resample or not hasattr(self, "mc_stats"):
+            # Generate Monte Carlo samples for size determination
+            self.mc_samples = multivariate_t.rvs(
+                shape=self.sigma_hat,
+                df=self.timesteps - 1,
+                size=self.num_samples,
+            )  # [B, D]
+            self.mc_stats = {
+                "1side": self._get_chi_sq_stat(
+                    self.mc_samples,
+                    one_side=True,
+                    weights=self.sigma_hat_diag_inv,
+                    axis=1,
+                ),
+                "1side_lr": self._get_chi_sq_stat(
+                    (self.sigma_hat_inv_sqrt @ self.mc_samples.T).T,
+                    one_side=True,
+                    axis=1,
+                ),
+            }
+
+    def test(self) -> None:
+        # Monte Carlo sampling for one-sided tests
+        self._monte_carlo_sampling()
+        # Hotelling T2 distribution for two-sided test
+        self.t2_dist = HotellingT2(
+            dim_rv=self.num_variables,
+            samp_size=self.timesteps - 1,
+        )
+
+    def get_rejection_threshold(self, alpha: float = 0.1) -> dict[str, float]:
+        return {
+            "1side": np.quantile(self.mc_stats["1side"], 1 - alpha).item(),
+            "1side_lr": np.quantile(self.mc_stats["1side_lr"], 1 - alpha).item(),
+            "2side": self.t2_dist.ppf(1 - alpha).item(),
+        }
+
+    def get_p_value(self) -> dict[str, float]:
+        return {
+            "1side": np.mean(self.mc_stats["1side"] > self.dm_stats["1side"]).item(),
+            "1side_lr": np.mean(
+                self.mc_stats["1side_lr"] > self.dm_stats["1side_lr"]
+            ).item(),
+            "2side": 1 - self.t2_dist.cdf(self.dm_stats["2side"]).item(),
+        }
