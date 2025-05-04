@@ -1,7 +1,7 @@
-from git import Optional
 import numpy as np
 from scipy.linalg import sqrtm
 from scipy.stats import multivariate_t
+from typing import Optional
 
 from src.utils.utils import get_autocovariance, matrix_inverse, HotellingT2
 
