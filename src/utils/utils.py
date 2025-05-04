@@ -25,21 +25,6 @@ def matrix_inverse(mat: np.ndarray) -> np.ndarray:
     return mat_inv
 
 
-def hotelling_t2_ppf(q: ArrayLike, dim_rv: int, samp_size: int) -> ArrayLike:
-    """
-    Args:
-        q: Lower tail probabilities
-        dim_rv: T2 parameter corresponding to the dimension of the RVs
-        samp_size: T2 parameter corresponding to the sample size
-    Returns:
-        t2_quantiles: Hotelling T2 quantiles corresponding to the lower tail probability q
-    """
-    dfd = samp_size - dim_rv
-    f_quantile = f.ppf(q=q, dfn=dim_rv, dfd=dfd)
-    t2_quantile = f_quantile * dim_rv * (samp_size - 1) / dfd
-    return t2_quantile
-
-
 def get_autocovariance(x: np.ndarray, lags: Sequence[int] | int):
     """
     Arguments:
@@ -85,3 +70,42 @@ def get_unif_grid(num_points: int, num_dims: int) -> np.ndarray:
     mesh = np.meshgrid(*tuple([grid_1d] * num_dims), indexing="ij")
     grid = np.stack(mesh, axis=-1).reshape(-1, num_dims)
     return grid
+
+
+class HotellingT2:
+    def __init__(self, dim_rv: int, samp_size: int):
+        """
+        Args:
+            dim_rv: T2 parameter corresponding to the dimension of the RVs
+            samp_size: T2 parameter corresponding to the sample size
+        """
+        # Hotelling T2 parameters
+        self.dim_rv = dim_rv
+        self.samp_size = samp_size
+        # Corresponding F parameters
+        self.dfn = dim_rv
+        self.dfd = samp_size - dim_rv
+        # Scaling factor linking the two distributions
+        self.scale = self.dfn * (samp_size - 1) / self.dfd
+
+    def ppf(self, q: ArrayLike) -> ArrayLike:
+        """
+        Args:
+            q: Lower tail probabilities
+        Returns:
+            t2_quantile: Hotelling T2 quantiles corresponding to lower tail probabilities q
+        """
+        f_quantile = f.ppf(q=q, dfn=self.dfn, dfd=self.dfd)
+        t2_quantile = self.scale * f_quantile
+        return t2_quantile
+
+    def cdf(self, x: ArrayLike) -> ArrayLike:
+        """
+        Args:
+            x: Quantiles
+        Returns:
+            t2_prob: Hotelling T2 lower tail probabilities corresponding to quantiles q
+        """
+        f_x = x / self.scale
+        t2_prob = f.cdf(f_x, dfn=self.dfn, dfd=self.dfd)
+        return t2_prob
