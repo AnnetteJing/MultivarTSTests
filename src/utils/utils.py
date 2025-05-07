@@ -1,9 +1,15 @@
 import numpy as np
 from numpy.typing import ArrayLike
+import pandas as pd
 from scipy.linalg import inv
 from scipy.stats import f
-from typing import Sequence
+from numbers import Number
+from matplotlib.colors import Colormap
+import seaborn as sns
+from typing import Sequence, Optional, Literal
 import warnings
+
+sns.set_style("darkgrid")
 
 
 def matrix_inverse(mat: np.ndarray) -> np.ndarray:
@@ -109,3 +115,31 @@ class HotellingT2:
         f_x = x / self.scale
         t2_prob = f.cdf(f_x, dfn=self.dfn, dfd=self.dfd)
         return t2_prob
+
+
+def pd_display_gradient(
+    df: pd.DataFrame,
+    cmap: Optional[Colormap] = None,
+    axis: Optional[Literal[0, 1]] = None,
+    min_val: Optional[float] = None,
+    max_val: Optional[float] = None,
+    precision: Optional[int] = None,
+) -> pd.DataFrame:
+    if cmap is None:
+        cmap = sns.color_palette("coolwarm", as_cmap=True)
+    if axis is None:
+        gmap = df
+        if isinstance(min_val, Number):
+            gmap = np.maximum(gmap, min_val)
+        if isinstance(max_val, Number):
+            gmap = np.minimum(gmap, max_val)
+        df_gradient = df.apply(pd.to_numeric).style.background_gradient(
+            gmap=gmap, cmap=cmap, axis=axis
+        )
+    else:
+        df_gradient = df.apply(pd.to_numeric).style.background_gradient(
+            cmap=cmap, axis=axis
+        )
+    if precision is not None:
+        df_gradient = df_gradient.format(precision=precision)
+    return df_gradient
