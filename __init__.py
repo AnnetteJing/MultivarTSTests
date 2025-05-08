@@ -1,3 +1,4 @@
+import os
 import sys
 import git
 
@@ -11,5 +12,6 @@ def get_git_root(path):
 
 
 ROOT_DIR = get_git_root(".")
+DATA_PATH = os.path.join(ROOT_DIR, "data")
 if ROOT_DIR not in sys.path:
-    sys.path.append(ROOT_DIR)
+    sys.path.extend([ROOT_DIR, DATA_PATH])
