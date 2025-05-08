@@ -5,7 +5,24 @@ import pathos.multiprocessing as mp
 from tqdm.auto import tqdm
 from typing import Optional
 
+from src.dm_test import MultivarDMHLN
 from src.density_test import JointDensityTest
+
+
+def _simulate_dm_test_single(
+    alpha: float,
+    num_timesteps: int,
+    ma_lag: int,
+    data_generation_process: Callable[[int], np.ndarray],
+    effect_sizes: np.ndarray,
+    seed: int,
+):
+    raise NotImplementedError("Implementation not finished yet")
+    np.random.seed(seed)
+    loss_diff = data_generation_process(num_timesteps=num_timesteps)
+    dm_test = MultivarDMHLN(ma_lag=ma_lag, loss_diff=loss_diff)
+    dm_test.test()
+    rej_thresholds = dm_test.get_rejection_threshold(alpha=alpha)
 
 
 def _simulate_density_test_single(
