@@ -21,3 +21,4 @@ dependencies:
   - pip=25.0
   - pip:
     - ipykernel==6.29.5
+    - cartopy==0.24.1
