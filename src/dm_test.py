@@ -11,29 +11,25 @@ class MultivarDMHLN:
         self,
         ma_lag: int,
         loss_diff: np.ndarray = None,
-        errors1: np.ndarray = None,
-        errors2: np.ndarray = None,
+        loss1: np.ndarray = None,
+        loss2: np.ndarray = None,
         num_samples: int = 100000,
     ):
         """
         Arguments:
             ma_lag (q): Number of lags in the MA representation
             loss_diff: [D, T] array of loss differential between the two models
-                If None, defaults to errors1 - errors.
-                Either `loss_diff` or `errors1, errors2` must be given.
-            errors1: [D, T] array of forecast errors from model 1 (benchmark model)
-            errors2: [D, T] array of forecast errors from model 2
+                If None, defaults to loss1 - errors.
+                Either `loss_diff` or `loss1, loss2` must be given.
+            loss1: [D, T] array of forecast loss from model 1 (benchmark model)
+            loss2: [D, T] array of forecast loss from model 2
             num_samples (B): Number of Monte Carlo samples for size determination
         """
         if loss_diff is None:
-            assert errors1 is not None and errors2 is not None
-            assert errors1.shape[0] == errors2.shape[0], (
-                "Mismatch in number of variables"
-            )
-            assert errors1.shape[1] == errors2.shape[1], (
-                "Mismatch in number of timesteps"
-            )
-            loss_diff = errors1 - errors2  # [D, T]
+            assert loss1 is not None and loss2 is not None
+            assert loss1.shape[0] == loss2.shape[0], "Mismatch in number of variables"
+            assert loss1.shape[1] == loss2.shape[1], "Mismatch in number of timesteps"
+            loss_diff = loss1 - loss2  # [D, T]
         self.loss_diff = loss_diff  # [D, T]
         self.num_variables = loss_diff.shape[0]  # D
         self.timesteps = loss_diff.shape[1]  # T
