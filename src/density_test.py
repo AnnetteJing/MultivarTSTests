@@ -22,20 +22,21 @@ class JointDensityTest:
         verbose: bool = True,
     ) -> None:
         """
-        targets: [N, D] array of realized forecasting targets
-            Denoted by Y_{t + h}, t = w, ..., T - h = N + w - 1, in the paper
-        marginal_dists: Length N list of marginals corresponding to each Hat{F}_t
-            Let Hat{F}_t(y), t = w, ..., T - h = N + w - 1, be the forecast densities
-            conditional on a size w look-back window.
-            marginal_dists[t].cdf(y) = [Hat{F}_{t, 1}(y_1), ..., Hat{F}_{t, D}(y_D)]
-        copulas: Length N list of copulas corresponding to each Hat{F}_t
-            copulas[t].cdf(u) = Hat{C}_t(u)
-        num_bootstrap (B): Number of bootstrap replications
-        block_len (l): Length of each block in the block bootstrap
-            Defaults to round(N**(1/3))
-        num_periods (p): Number of periods
-            If provided, block_len is round to the nearest multiple
-        verbose: Whether to print progress bars, updates, and warnings
+        Arguments:
+            targets: [N, D] array of realized forecasting targets
+                Denoted by Y_{t + h}, t = w, ..., T - h = N + w - 1, in the paper
+            marginal_dists: Length N list of marginals corresponding to each Hat{F}_t
+                Let Hat{F}_t(y), t = w, ..., T - h = N + w - 1, be the forecast densities
+                conditional on a size w look-back window.
+                marginal_dists[t].cdf(y) = [Hat{F}_{t, 1}(y_1), ..., Hat{F}_{t, D}(y_D)]
+            copulas: Length N list of copulas corresponding to each Hat{F}_t
+                copulas[t].cdf(u) = Hat{C}_t(u)
+            num_bootstrap (B): Number of bootstrap replications
+            block_len (l): Length of each block in the block bootstrap
+                Defaults to round(N**(1/3))
+            num_periods (p): Number of periods
+                If provided, block_len is round to the nearest multiple
+            verbose: Whether to print progress bars, updates, and warnings
         """
         self.targets = np.array(targets)  # [N, D]
         self.num_samples = self.targets.shape[0]  # N

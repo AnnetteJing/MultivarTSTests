@@ -20,7 +20,7 @@ class MultivarDMHLN:
             ma_lag (q): Number of lags in the MA representation
             loss_diff: [D, T] array of loss differential between the two models
                 If None, defaults to loss1 - errors.
-                Either `loss_diff` or `loss1, loss2` must be given.
+                One of `loss_diff` or `loss1, loss2` must be given.
             loss1: [D, T] array of forecast loss from model 1 (benchmark model)
             loss2: [D, T] array of forecast loss from model 2
             num_samples (B): Number of Monte Carlo samples for size determination
